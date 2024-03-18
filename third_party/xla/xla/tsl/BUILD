@@ -1,7 +1,7 @@
 load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
 load("@bazel_skylib//lib:selects.bzl", "selects")
 load("@bazel_skylib//rules:common_settings.bzl", "bool_flag", "bool_setting")
-load("tsl.bzl", "if_google", "if_oss")
+load("tsl.bzl", "if_google", "if_hermetic_cuda_libs", "if_oss")
 load("tsl.default.bzl", "tsl_google_bzl_deps")
 
 # copybara:uncomment package(default_applicable_licenses = ["//tensorflow:license"])
@@ -562,3 +562,21 @@ cc_library(
     }),
 )
 # copybara:comment_end
+
+cc_library(
+    name = "gpu_runtime_hermetic_cuda_deps",
+    tags = ["manual"],
+    visibility = ["//visibility:public"],
+    deps = if_hermetic_cuda_libs([
+        "@cuda_cudart//:cudart",
+        "@cuda_cudnn//:cudnn",
+        "@cuda_cudnn//:cudnn_other",
+        "@cuda_nvrtc//:nvrtc",
+        "@cuda_cublas//:cublas",
+        "@cuda_cublas//:cublasLt",
+        "@cuda_cusolver//:cusolver",
+        "@cuda_cufft//:cufft",
+        "@cuda_cusparse//:cusparse",
+        "@cuda_nvjitlink//:nvjitlink",
+    ]),
+)

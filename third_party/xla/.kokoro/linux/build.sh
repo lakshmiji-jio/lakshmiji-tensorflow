@@ -74,6 +74,7 @@ if is_linux_gpu_job ; then
       #TODO(b/338885148): Remove this block after TF was updated to cuDNN 9
       pushd github/xla
       sed -i 's/@sigbuild-r2\.17-clang_/@sigbuild-r2.17-clang-cudnn9_/g' .bazelrc
+      sed -i 's/8\.9\.7\.29/9.1.1/g' .bazelrc
       echo "The following changes were made:"
       git diff -- .bazelrc || true
       popd

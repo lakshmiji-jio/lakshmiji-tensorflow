@@ -101,3 +101,36 @@ tf_workspace1()
 load("@//tensorflow:workspace0.bzl", "tf_workspace0")
 
 tf_workspace0()
+
+load(
+    "@local_tsl//third_party/gpus/cuda:hermetic_cuda_json_init_repository.bzl",
+    "CUDA_REDIST_JSON_DICT",
+    "CUDNN_REDIST_JSON_DICT",
+    "hermetic_cuda_json_init_repository",
+)
+
+hermetic_cuda_json_init_repository(
+    cuda_json_dict = CUDA_REDIST_JSON_DICT,
+    cudnn_json_dict = CUDNN_REDIST_JSON_DICT,
+)
+
+load(
+    "@cuda_redist_json//:distributions.bzl",
+    "CUDA_DISTRIBUTIONS",
+    "CUDNN_DISTRIBUTIONS",
+)
+load(
+    "@local_tsl//third_party/gpus/cuda:hermetic_cuda_redist_init_repositories.bzl",
+    "CUDA_DIST_PATH_PREFIX",
+    "CUDA_NCCL_WHEELS",
+    "CUDNN_DIST_PATH_PREFIX",
+    "hermetic_cuda_redist_init_repositories",
+)
+
+hermetic_cuda_redist_init_repositories(
+    cuda_dist_path_prefix = CUDA_DIST_PATH_PREFIX,
+    cuda_distributions = CUDA_DISTRIBUTIONS,
+    cuda_nccl_wheels = CUDA_NCCL_WHEELS,
+    cudnn_dist_path_prefix = CUDNN_DIST_PATH_PREFIX,
+    cudnn_distributions = CUDNN_DISTRIBUTIONS,
+)
