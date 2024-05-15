@@ -800,17 +800,17 @@ cc_library(
 filegroup(
     name = "xla_cpu_runtime_hdrs",
     srcs = [
-        "@local_tsl//tsl/framework/contraction:eigen_contraction_kernel.h",
-        "@local_tsl//tsl/framework/convolution:eigen_convolution_helpers.h",
-        "@local_tsl//tsl/framework/convolution:eigen_spatial_convolutions.h",
-        "@local_tsl//tsl/framework/convolution:eigen_spatial_convolutions-inl.h",
+        "@local_xla//xla/tsl/framework/contraction:eigen_contraction_kernel.h",
+        "@local_xla//xla/tsl/framework/convolution:eigen_convolution_helpers.h",
+        "@local_xla//xla/tsl/framework/convolution:eigen_spatial_convolutions.h",
+        "@local_xla//xla/tsl/framework/convolution:eigen_spatial_convolutions-inl.h",
     ],
 )
 
 filegroup(
     name = "xla_cpu_runtime_srcs",
     srcs = [
-        "@local_tsl//tsl/framework/contraction:eigen_contraction_kernel.cc",
+        "@local_xla//xla/tsl/framework/contraction:eigen_contraction_kernel.cc",
     ],
 )
 
@@ -843,16 +843,16 @@ cc_library(
         "eigen_backward_spatial_convolutions.h",
         "eigen_cuboid_convolution.h",
         "eigen_pooling.h",
-        "@local_tsl//tsl/framework/convolution:eigen_spatial_convolutions.h",
+        "@local_xla//xla/tsl/framework/convolution:eigen_spatial_convolutions.h",
     ],
     compatible_with = get_compatible_with_portable(),
     defines = ["EIGEN_NEON_GEBP_NR=4"],
     deps = [
         "@eigen_archive//:eigen3",
-        "@local_tsl//tsl/framework/contraction:eigen_contraction_kernel",
-        "@local_tsl//tsl/framework/convolution:eigen_convolution_helpers",
-        "@local_tsl//tsl/framework/convolution:eigen_helpers",
-        "@local_tsl//tsl/framework/convolution:eigen_spatial_convolutions-inl",
+        "@local_xla//xla/tsl/framework/contraction:eigen_contraction_kernel",
+        "@local_xla//xla/tsl/framework/convolution:eigen_convolution_helpers",
+        "@local_xla//xla/tsl/framework/convolution:eigen_helpers",
+        "@local_xla//xla/tsl/framework/convolution:eigen_spatial_convolutions-inl",
     ],
 )
 
@@ -869,8 +869,8 @@ cc_library(
     defines = ["EIGEN_NEON_GEBP_NR=4"],
     deps = [
         "@eigen_archive//:eigen3",
-        "@local_tsl//tsl/framework/convolution:eigen_convolution_helpers",
-        "@local_tsl//tsl/framework/convolution:eigen_spatial_convolutions-inl",
+        "@local_xla//xla/tsl/framework/convolution:eigen_convolution_helpers",
+        "@local_xla//xla/tsl/framework/convolution:eigen_spatial_convolutions-inl",
     ],
 )
 
@@ -3145,7 +3145,7 @@ tf_cc_test(
         "//tensorflow/core:test",
         "//tensorflow/core:test_main",
         "@eigen_archive//:eigen3",
-        "@local_tsl//tsl/framework/contraction:eigen_contraction_kernel",
+        "@local_xla//xla/tsl/framework/contraction:eigen_contraction_kernel",
     ],
 )
 
@@ -3526,7 +3526,7 @@ MATH_DEPS = [
 tf_kernel_library(
     name = "sparse_matmul_op",
     prefix = "sparse_matmul_op",
-    deps = MATH_DEPS + ["@local_tsl//tsl/framework/contraction:eigen_contraction_kernel"],
+    deps = MATH_DEPS + ["@local_xla//xla/tsl/framework/contraction:eigen_contraction_kernel"],
 )
 
 cc_library(
@@ -3591,7 +3591,7 @@ tf_kernel_library(
     deps = MATH_DEPS + [
         ":fused_eigen_output_kernels",
         ":loose_headers",
-        "@local_tsl//tsl/framework/contraction:eigen_contraction_kernel",
+        "@local_xla//xla/tsl/framework/contraction:eigen_contraction_kernel",
     ] + mkl_deps() + if_cuda([
         "@local_xla//xla/stream_executor/cuda:cublas_plugin",
     ]) + if_rocm_hipblaslt([
@@ -4161,7 +4161,7 @@ tf_kernel_library(
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/synchronization",
         "@eigen_archive//:eigen3",
-        "@local_tsl//tsl/framework/contraction:eigen_contraction_kernel",
+        "@local_xla//xla/tsl/framework/contraction:eigen_contraction_kernel",
     ] + if_cuda([
         ":numeric_options_utils",
         "@local_xla//xla/stream_executor/cuda:cublas_plugin",
@@ -4285,7 +4285,7 @@ cc_library(
 )
 
 NN_DEPS = if_cuda_or_rocm([":conv_2d"]) + [
-    "@local_tsl//tsl/framework/contraction:eigen_contraction_kernel",
+    "@local_xla//xla/tsl/framework/contraction:eigen_contraction_kernel",
     ":ops_util",
     "//tensorflow/core:framework",
     "//tensorflow/core:lib",
@@ -5403,7 +5403,7 @@ cc_library(
         "//tensorflow/core:lib",
         "//tensorflow/core:lib_internal",
         "@eigen_archive//:eigen3",
-        "@local_tsl//tsl/framework/contraction:eigen_contraction_kernel",
+        "@local_xla//xla/tsl/framework/contraction:eigen_contraction_kernel",
     ],
 )
 
@@ -6361,9 +6361,9 @@ filegroup(
         "queue_base.h",
         "queue_op.h",
         "typed_queue.h",
-        "@local_tsl//tsl/framework/convolution:eigen_convolution_helpers.h",
-        "@local_tsl//tsl/framework/convolution:eigen_spatial_convolutions.h",
-        "@local_tsl//tsl/framework/convolution:eigen_spatial_convolutions-inl.h",
+        "@local_xla//xla/tsl/framework/convolution:eigen_convolution_helpers.h",
+        "@local_xla//xla/tsl/framework/convolution:eigen_spatial_convolutions.h",
+        "@local_xla//xla/tsl/framework/convolution:eigen_spatial_convolutions-inl.h",
     ],
 )
 
@@ -6760,8 +6760,8 @@ filegroup(
         "population_count_op.h",
         "winograd_transform.h",
         ":portable_extended_ops_headers",
-        "@local_tsl//tsl/framework/contraction:eigen_contraction_kernel.cc",
-        "@local_tsl//tsl/framework/contraction:eigen_contraction_kernel.h",
+        "@local_xla//xla/tsl/framework/contraction:eigen_contraction_kernel.cc",
+        "@local_xla//xla/tsl/framework/contraction:eigen_contraction_kernel.h",
     ] + [
         "//tensorflow/core/kernels/image:colorspace_op.cc",
         "//tensorflow/core/kernels/image:crop_and_resize_op.cc",
@@ -7029,8 +7029,8 @@ filegroup(
 )
 
 ANDROID_TEXTUAL_HDRS = [
-    "@local_tsl//tsl/framework/convolution:eigen_convolution_helpers.h",
-    "@local_tsl//tsl/framework/convolution:eigen_spatial_convolutions-inl.h",
+    "@local_xla//xla/tsl/framework/convolution:eigen_convolution_helpers.h",
+    "@local_xla//xla/tsl/framework/convolution:eigen_spatial_convolutions-inl.h",
     "gather_nd_op_cpu_impl.h",
     "gemm_functors.h",
     "scatter_nd_op_cpu_impl.h",
@@ -7190,7 +7190,7 @@ cc_library(
         "@fft2d",
         "@gemmlowp",
         "@icu//:common",
-        "@local_tsl//tsl/framework/fixedpoint",
+        "@local_xla//xla/tsl/framework/fixedpoint",
     ],
     alwayslink = 1,
 )

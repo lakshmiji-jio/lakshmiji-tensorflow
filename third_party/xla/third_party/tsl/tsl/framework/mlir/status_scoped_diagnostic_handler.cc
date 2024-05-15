@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#include "tsl/framework/mlir/status_scoped_diagnostic_handler.h"
+#include "xla/tsl/framework/mlir/status_scoped_diagnostic_handler.h"
 
 #include <cassert>
 

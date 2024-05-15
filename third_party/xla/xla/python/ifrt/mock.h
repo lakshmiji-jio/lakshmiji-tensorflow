@@ -58,7 +58,7 @@ limitations under the License.
 #include "xla/status.h"
 #include "xla/test.h"
 #include "xla/tsl/concurrency/ref_count.h"
-#include "tsl/framework/allocator.h"
+#include "xla/tsl/framework/allocator.h"
 
 namespace xla {
 namespace ifrt {

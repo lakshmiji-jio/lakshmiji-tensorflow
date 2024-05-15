@@ -221,10 +221,10 @@ cc_library(
         ":pjrt_client_factory_options",
         "//tensorflow/core:framework",
         "//tensorflow/core:framework_lite",
-        "@local_tsl//tsl/framework:device_type",
         "@local_tsl//tsl/platform:statusor",
         "@local_xla//xla:statusor",
         "@local_xla//xla/pjrt:pjrt_client",
+        "@local_xla//xla/tsl/framework:device_type",
     ],
 )
 

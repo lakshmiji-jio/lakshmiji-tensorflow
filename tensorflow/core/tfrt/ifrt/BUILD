@@ -31,7 +31,7 @@ cc_library(
     hdrs = ["ifrt_serving_core_selector.h"],
     deps = [
         "@com_google_absl//absl/strings",
-        "@local_tsl//tsl/framework:serving_device_selector",
+        "@local_xla//xla/tsl/framework:serving_device_selector",
     ],
 )
 
@@ -43,8 +43,8 @@ tf_cc_test(
         ":ifrt_serving_core_selector",
         "@com_google_absl//absl/strings",
         "@com_google_googletest//:gtest_main",
-        "@local_tsl//tsl/framework:serving_device_selector",
-        "@local_tsl//tsl/framework/test_util:mock_serving_device_selector",
+        "@local_xla//xla/tsl/framework:serving_device_selector",
+        "@local_xla//xla/tsl/framework/test_util:mock_serving_device_selector",
     ],
 )
 
@@ -84,7 +84,6 @@ cc_library(
         "@com_google_absl//absl/synchronization",
         "@com_google_absl//absl/types:span",
         "@llvm-project//mlir:IR",
-        "@local_tsl//tsl/framework:serving_device_selector",
         "@local_tsl//tsl/platform:env",
         "@local_tsl//tsl/platform:errors",
         "@local_tsl//tsl/platform:statusor",
@@ -100,6 +99,7 @@ cc_library(
         "@local_xla//xla/python/pjrt_ifrt:xla_ifrt",
         "@local_xla//xla/service:computation_placer_hdr",
         "@local_xla//xla/tsl/concurrency:ref_count",
+        "@local_xla//xla/tsl/framework:serving_device_selector",
         "@tf_runtime//:hostcontext",
     ],
 )
@@ -446,8 +446,6 @@ tf_cc_test(
         "@llvm-project//mlir:AllPassesAndDialects",
         "@llvm-project//mlir:IR",
         "@llvm-project//mlir:Parser",
-        "@local_tsl//tsl/framework:serving_device_selector",
-        "@local_tsl//tsl/framework/test_util:mock_serving_device_selector",
         "@local_tsl//tsl/platform:env",
         "@local_tsl//tsl/platform:statusor",
         "@local_tsl//tsl/platform:tstring",
@@ -456,6 +454,8 @@ tf_cc_test(
         "@local_xla//xla/python/ifrt:test_util",
         "@local_xla//xla/python/pjrt_ifrt:tfrt_cpu_client_test_lib",
         "@local_xla//xla/tsl/concurrency:ref_count",
+        "@local_xla//xla/tsl/framework:serving_device_selector",
+        "@local_xla//xla/tsl/framework/test_util:mock_serving_device_selector",
         "@tf_runtime//:basic_kernels_alwayslink",
         "@tf_runtime//:core_runtime_alwayslink",
         "@tf_runtime//:hostcontext",

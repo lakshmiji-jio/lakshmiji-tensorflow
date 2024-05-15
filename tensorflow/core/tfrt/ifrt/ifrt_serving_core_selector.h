@@ -18,7 +18,7 @@ limitations under the License.
 
 #include <cstdint>
 
-#include "tsl/framework/serving_device_selector.h"
+#include "xla/tsl/framework/serving_device_selector.h"
 namespace tensorflow {
 namespace ifrt_serving {
 
