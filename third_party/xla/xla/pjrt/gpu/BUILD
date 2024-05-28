@@ -56,6 +56,7 @@ cc_library(
         "//xla/client:xla_computation",
         "//xla/pjrt:compile_options_proto_cc",
         "//xla/pjrt:event_pool",
+        "//xla/pjrt:host_memory_spaces",
         "//xla/pjrt:local_device_state",
         "//xla/pjrt:mlir_to_hlo",
         "//xla/pjrt:pjrt_client",
