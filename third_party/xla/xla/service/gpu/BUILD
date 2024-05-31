@@ -1192,6 +1192,7 @@ cc_library(
     hdrs = ["triton_support.h"],
     deps = [
         ":variant_visitor",
+        "//xla:shape_util",
         "//xla:xla_data_proto_cc",
         "//xla/hlo/ir:hlo",
         "//xla/service:instruction_fusion",
@@ -5527,7 +5528,6 @@ xla_test(
         "gpu_amd_any",
     ],
     tags = [
-        "no_oss",  # Needs fix for `ConvertGenerator`
         "nomac",
     ],
     deps = [
