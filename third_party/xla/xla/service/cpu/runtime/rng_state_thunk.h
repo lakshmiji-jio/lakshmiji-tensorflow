@@ -13,26 +13,35 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#ifndef XLA_SERVICE_CPU_RUNTIME_CALL_THUNK_H_
-#define XLA_SERVICE_CPU_RUNTIME_CALL_THUNK_H_
+#ifndef XLA_SERVICE_CPU_RUNTIME_RNG_STATE_THUNK_H_
+#define XLA_SERVICE_CPU_RUNTIME_RNG_STATE_THUNK_H_
 
+#include <cstdint>
+
+#include "absl/base/thread_annotations.h"
+#include "absl/numeric/int128.h"
 #include "absl/status/status.h"
+#include "absl/synchronization/mutex.h"
+#include "xla/service/buffer_assignment.h"
 #include "xla/service/cpu/runtime/thunk.h"
 
 namespace xla::cpu {
 
-// A thunk constructed from a call instruction that simply calls a thunk
-// sequence emitted from the called computation.
-class CallThunk final : public Thunk {
+class RngGetAndUpdateStateThunk final : public Thunk {
  public:
-  CallThunk(Info info, ThunkSequence called_sequence);
+  RngGetAndUpdateStateThunk(Info info, BufferAllocation::Slice state_buffer,
+                            int64_t delta);
 
   absl::Status Execute(const ExecuteParams& params) final;
 
  private:
-  ThunkSequence called_sequence_;
+  BufferAllocation::Slice state_buffer_;
+  int64_t delta_;
+
+  absl::Mutex mu_;
+  absl::int128 state_ ABSL_GUARDED_BY(mu_);
 };
 
 }  // namespace xla::cpu
 
-#endif  // XLA_SERVICE_CPU_RUNTIME_CALL_THUNK_H_
+#endif  // XLA_SERVICE_CPU_RUNTIME_RNG_STATE_THUNK_H_
