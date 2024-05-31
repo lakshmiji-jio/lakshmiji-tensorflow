@@ -42,6 +42,7 @@ limitations under the License.
 #include "xla/literal.h"
 #include "xla/pjrt/pjrt_client.h"
 #include "xla/pjrt/pjrt_compiler.h"
+#include "xla/pjrt/pjrt_future.h"
 #include "xla/pjrt/pjrt_layout.h"
 #include "xla/python/ifrt/array.h"
 #include "xla/python/ifrt/client.h"
@@ -517,6 +518,16 @@ PjRtClient::RemapArrays(const RemapPlan& plan,
                         absl::Span<tsl::RCReference<xla::ifrt::Array>> arrays,
                         ArrayCopySemantics semantics) {
   return PjRtCompatibleClientRemapArrays(this, plan, arrays, semantics);
+}
+
+Future<> PjRtClient::GetArrayReadyFuture(
+    absl::Span<const tsl::RCReference<Array>> arrays) {
+  absl::InlinedVector<Future<>, 1> futures;
+  futures.reserve(arrays.size());
+  for (const auto& array : arrays) {
+    futures.push_back(array->GetReadyFuture());
+  }
+  return JoinFutures(futures);
 }
 
 absl::StatusOr<tsl::RCReference<Tuple>> PjRtClient::MakeTuple(

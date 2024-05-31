@@ -115,7 +115,7 @@ void Array::Destruct(RpcHelper* rpc_helper, ArrayHandle handle) {
 
 Future<> Array::GetReadyFuture() const {
   auto req = std::make_unique<CheckArrayReadyRequest>();
-  req->set_array_handle(handle_.handle);
+  req->add_array_handles(handle_.handle);
 
   auto promise = Future<>::CreatePromise();
   rpc_helper_->CheckArrayReady(std::move(req))

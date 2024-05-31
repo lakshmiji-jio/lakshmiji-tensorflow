@@ -36,6 +36,7 @@ limitations under the License.
 #include "xla/python/ifrt/compiler.h"
 #include "xla/python/ifrt/device.h"
 #include "xla/python/ifrt/dtype.h"
+#include "xla/python/ifrt/future.h"
 #include "xla/python/ifrt/remap_plan.h"
 #include "xla/python/ifrt/shape.h"
 #include "xla/python/ifrt/sharding.h"
@@ -133,6 +134,12 @@ class Client : public llvm::RTTIExtends<Client, llvm::RTTIRoot> {
   RemapArrays(const RemapPlan& plan,
               absl::Span<tsl::RCReference<xla::ifrt::Array>> arrays,
               ArrayCopySemantics semantics) = 0;
+
+  // Returns a future that becomes ready once all of the arrays become ready.
+  // In some implementations, this may be more efficient than calling
+  // `Array::GetReadyFuture()` individually.
+  virtual Future<> GetArrayReadyFuture(
+      absl::Span<const tsl::RCReference<Array>> arrays) = 0;
 
   // Builds a tuple from a sequence of values.
   virtual absl::StatusOr<tsl::RCReference<Tuple>> MakeTuple(

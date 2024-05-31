@@ -148,6 +148,16 @@ class MockArrayTest : public testing::Test {
               return result;
             });
 
+    ON_CALL(*mock_backend, GetArrayReadyFuture)
+        .WillByDefault([](absl::Span<const tsl::RCReference<Array>> arrays) {
+          std::vector<Future<>> futures;
+          futures.reserve(arrays.size());
+          for (const auto& array : arrays) {
+            futures.push_back(array->GetReadyFuture());
+          }
+          return JoinFutures(futures);
+        });
+
     return mock_backend;
   }
 
