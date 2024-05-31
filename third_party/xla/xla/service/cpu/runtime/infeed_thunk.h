@@ -13,26 +13,34 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#ifndef XLA_SERVICE_CPU_RUNTIME_CALL_THUNK_H_
-#define XLA_SERVICE_CPU_RUNTIME_CALL_THUNK_H_
+#ifndef XLA_SERVICE_CPU_RUNTIME_INFEED_THUNK_H_
+#define XLA_SERVICE_CPU_RUNTIME_INFEED_THUNK_H_
+
+#include <vector>
 
 #include "absl/status/status.h"
+#include "absl/types/span.h"
+#include "xla/service/buffer_assignment.h"
 #include "xla/service/cpu/runtime/thunk.h"
+#include "xla/shape.h"
 
 namespace xla::cpu {
 
-// A thunk constructed from a call instruction that simply calls a thunk
-// sequence emitted from the called computation.
-class CallThunk final : public Thunk {
+class InfeedThunk final : public Thunk {
  public:
-  CallThunk(Info info, ThunkSequence called_sequence);
+  struct InfeedBuffer {
+    BufferAllocation::Slice slice;
+    Shape shape;
+  };
+
+  InfeedThunk(Info info, absl::Span<const InfeedBuffer> infeed_buffers);
 
   absl::Status Execute(const ExecuteParams& params) final;
 
  private:
-  ThunkSequence called_sequence_;
+  std::vector<InfeedBuffer> infeed_buffers_;
 };
 
 }  // namespace xla::cpu
 
-#endif  // XLA_SERVICE_CPU_RUNTIME_CALL_THUNK_H_
+#endif  // XLA_SERVICE_CPU_RUNTIME_INFEED_THUNK_H_
