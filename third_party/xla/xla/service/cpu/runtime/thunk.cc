@@ -17,12 +17,15 @@ limitations under the License.
 
 #include <memory>
 #include <ostream>
+#include <string>
 #include <string_view>
 #include <utility>
 
 #include "absl/status/status.h"
 #include "tsl/platform/errors.h"
 #include "tsl/platform/logging.h"
+#include "tsl/profiler/lib/traceme.h"
+#include "tsl/profiler/lib/traceme_encode.h"
 
 namespace xla::cpu {
 
@@ -32,11 +35,23 @@ std::string_view Thunk::KindToString(Kind kind) {
       return "call";
     case Kind::kCopy:
       return "copy";
+    case Kind::kInfeed:
+      return "infeed";
+    case Kind::kRngGetAndUpdateState:
+      return "rng-get-and-update-state";
     case Kind::kKernel:
       return "kernel";
     case Kind::kWhile:
       return "while";
   }
+}
+
+// Encodes thunk info into the TraceMe compatible format.
+std::string Thunk::TraceMeEncode() const {
+  return tsl::profiler::TraceMeEncode(info_.op_name,
+                                      {{"hlo_op", info_.op_name},
+                                       {"hlo_module", info_.module_name},
+                                       {"hlo_module_id", info_.module_id}});
 }
 
 std::ostream& operator<<(std::ostream& os, Thunk::Kind kind) {

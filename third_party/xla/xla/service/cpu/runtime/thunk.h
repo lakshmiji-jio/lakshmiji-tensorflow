@@ -16,8 +16,10 @@ limitations under the License.
 #ifndef XLA_SERVICE_CPU_RUNTIME_THUNK_H_
 #define XLA_SERVICE_CPU_RUNTIME_THUNK_H_
 
+#include <cstdint>
 #include <memory>
 #include <ostream>
+#include <string>
 #include <string_view>
 #include <type_traits>
 #include <utility>
@@ -26,6 +28,7 @@ limitations under the License.
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "xla/service/cpu/runtime/buffer_allocations.h"
+#include "xla/service/cpu/xfeed_manager.h"
 #include "xla/stream_executor/host/host_kernel_c_api.h"
 
 namespace xla::cpu {
@@ -49,8 +52,16 @@ class Thunk {
   enum class Kind {
     kCall,
     kCopy,
+    kInfeed,
     kKernel,
+    kRngGetAndUpdateState,
     kWhile,
+  };
+
+  struct Info {
+    std::string op_name;
+    std::string module_name;
+    int64_t module_id;
   };
 
   virtual ~Thunk() = default;
@@ -58,9 +69,10 @@ class Thunk {
   Thunk(const Thunk&) = delete;
   Thunk& operator=(const Thunk&) = delete;
 
-  explicit Thunk(Kind kind) : kind_(kind) {}
+  explicit Thunk(Kind kind, Info info) : kind_(kind), info_(std::move(info)) {}
 
   Kind kind() const { return kind_; }
+  const Info& info() const { return info_; }
 
   static std::string_view KindToString(Kind kind);
 
@@ -87,12 +99,18 @@ class Thunk {
   struct ExecuteParams {
     HostKernels* host_kernels = nullptr;
     const BufferAllocations* buffer_allocations = nullptr;
+    runtime::XfeedManager* xfeed = nullptr;
   };
 
   virtual absl::Status Execute(const ExecuteParams& params) = 0;
 
+ protected:
+  // Encodes thunk info into the TraceMe compatible format.
+  std::string TraceMeEncode() const;
+
  private:
   Kind kind_;
+  Info info_;
 };
 
 std::ostream& operator<<(std::ostream& os, Thunk::Kind kind);
