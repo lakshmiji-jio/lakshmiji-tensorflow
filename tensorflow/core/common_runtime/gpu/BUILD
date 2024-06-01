@@ -158,6 +158,7 @@ tf_cuda_library(
         "@local_config_cuda//cuda:cudnn_header",
         "@local_xla//xla/stream_executor/cuda:cuda_platform",
         "@local_xla//xla/stream_executor/gpu:gpu_stream",
+        "@local_xla//xla/tsl:gpu_runtime_hermetic_cuda_deps",
     ],
     defines = if_linux_x86_64(["TF_PLATFORM_LINUX_X86_64"]),
     features = ["-layering_check"],

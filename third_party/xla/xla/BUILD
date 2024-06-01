@@ -1268,7 +1268,10 @@ alias(
 bzl_library(
     name = "lit_bzl",
     srcs = ["lit.bzl"],
-    deps = ["@bazel_skylib//lib:paths"],
+    deps = [
+        "//xla/tsl:tsl_bzl",
+        "@bazel_skylib//lib:paths",
+    ],
 )
 
 bzl_library(
