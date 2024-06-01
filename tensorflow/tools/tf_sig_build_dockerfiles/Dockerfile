@@ -60,6 +60,7 @@ RUN echo $CACHEBUSTER
 ARG PYTHON_VERSION
 COPY setup.python.sh /setup.python.sh
 COPY devel.requirements.txt /devel.requirements.txt
+RUN add-apt-repository ppa:deadsnakes/ppa && apt update -y
 RUN /setup.python.sh $PYTHON_VERSION devel.requirements.txt
 
 # Setup build and environment
