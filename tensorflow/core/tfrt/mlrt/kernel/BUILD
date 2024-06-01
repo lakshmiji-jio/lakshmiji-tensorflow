@@ -99,6 +99,7 @@ cc_library(
     ],
     alwayslink = 1,
 )
+# copybara:uncomment_end
 
 cc_library(
     name = "batch_kernel",
@@ -185,6 +186,7 @@ tf_cc_shared_test(
     ],
 )
 
+# copybara:uncomment_begin(google-only)
 tf_cc_shared_test(
     name = "ifrt_ops_kernel_test",
     srcs = ["ifrt_ops_kernel_test.cc"],
