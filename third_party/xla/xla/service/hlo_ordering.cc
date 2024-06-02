@@ -22,6 +22,7 @@ limitations under the License.
 #include "absl/strings/str_format.h"
 #include "absl/strings/str_join.h"
 #include "xla/hlo/ir/hlo_computation.h"
+#include "xla/hlo/ir/hlo_instruction.h"
 #include "xla/shape_util.h"
 #include "xla/status_macros.h"
 #include "xla/statusor.h"
@@ -225,20 +226,32 @@ bool HloOrdering::UsesBeforeValueDefinition(
             << ", value=" << value.ToShortString() << ")";
     switch (
         GetExecutionConstraint(use.instruction, value.defining_instruction())) {
-      case HloOrdering::ExecutionConstraint::kIsSame:
-        // If the use is at the instruction where the value is defined, then the
-        // use is before the def if the instruction allows buffer sharing (in
-        // place computation).
-        if (use_is_always_before_def_in_same_instr ||
-            dataflow.CanShareOperandBufferWithUser(
-                use.instruction->mutable_operand(use.operand_number),
-                use.operand_index, value.defining_instruction(),
-                value.defining_index())) {
+      case HloOrdering::ExecutionConstraint::kIsSame: {
+        if (use_is_always_before_def_in_same_instr) {
+          return true;
+        }
+
+        HloInstruction* operand =
+            use.instruction->mutable_operand(use.operand_number);
+        HloInstruction* user = value.defining_instruction();
+
+        if (!user->IsUserOf(operand)) {
+          user = use.instruction;
+        }
+        // If the use is at the instruction where the value is
+        // defined, then the use is before the definition if the instruction
+        // allows buffer sharing (in place computation).
+        if (dataflow.CanShareOperandBufferWithUser(
+                /*operand=*/operand,
+                /*operand_index=*/use.operand_index,
+                /*user=*/user,
+                /*user_index=*/value.defining_index())) {
           VLOG(4)
               << "  use is value def, and instruction can share use buffer.";
           return true;
         }
         break;
+      }
       case HloOrdering::ExecutionConstraint::kRunExclusiveAfter:
         // If the use is located in a branch that is exclusive to the branch
         // where value is located, in order for them to interfere, there must be
