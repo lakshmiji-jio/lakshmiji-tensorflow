@@ -17,6 +17,8 @@ limitations under the License.
 
 #include <stdint.h>
 
+#include <memory>
+
 #include "Eigen/Core"  // from @eigen_archive
 #include "tensorflow/lite/core/c/common.h"
 #include "tensorflow/lite/kernels/internal/optimized/optimized_ops.h"
@@ -60,6 +62,20 @@ inline TfLiteStatus PerChannelDequantizeImpl(TfLiteContext* context,
       quantization_params->quantized_dimension;
   per_channel_op_params.scale = quantization_params->scale->data;
   per_channel_op_params.zero_point = quantization_params->zero_point->data;
+  const int8_t* input_data;
+  const size_t bytes_unpacked = input->bytes * 2;
+  auto unpacked_input_data =
+      std::make_unique<int8_t>(bytes_unpacked / sizeof(int8_t));
+
+  if (input->type == kTfLiteInt4) {
+    tflite::tensor_utils::UnpackDenseInt4IntoInt8(
+        GetTensorData<int8_t>(input), GetTensorShape(input).FlatSize(),
+        unpacked_input_data.get());
+    input_data = unpacked_input_data.get();
+  } else {
+    input_data = GetTensorData<int8_t>(input);
+  }
+
   switch (input->type) {
     case kTfLiteUInt8:
       reference_ops::PerChannelDequantize<uint8_t>(
@@ -67,6 +83,7 @@ inline TfLiteStatus PerChannelDequantizeImpl(TfLiteContext* context,
           GetTensorData<uint8_t>(input), GetTensorShape(output),
           GetTensorData<float>(output));
       break;
+    case kTfLiteInt4:
     case kTfLiteInt8:
       reference_ops::PerChannelDequantize<int8_t>(
           per_channel_op_params, GetTensorShape(input),
@@ -90,6 +107,22 @@ TfLiteStatus DequantizeImpl(TfLiteContext* context, TfLiteNode* node,
   DequantizationParams op_params;
   op_params.zero_point = input->params.zero_point;
   op_params.scale = input->params.scale;
+  const int8_t* input_data;
+  const size_t bytes_unpacked = sizeof(int8_t) * input->bytes * 2;
+  auto unpacked_input_data =
+      std::make_unique<int8_t>(bytes_unpacked / sizeof(int8_t));
+
+  if (input->type == kTfLiteInt4) {
+    // bytes_unpacked is used for num_elements, because it's for unpacked size,
+    // not the original packed size.
+    tflite::tensor_utils::UnpackDenseInt4IntoInt8(GetTensorData<int8_t>(input),
+                                                  bytes_unpacked,
+                                                  unpacked_input_data.get());
+    input_data = unpacked_input_data.get();
+  } else {
+    input_data = GetTensorData<int8_t>(input);
+  }
+
   switch (input->type) {
     case kTfLiteUInt8:
       if (kernel_type == kReference) {
@@ -102,15 +135,16 @@ TfLiteStatus DequantizeImpl(TfLiteContext* context, TfLiteNode* node,
             GetTensorShape(output), GetTensorData<float>(output));
       }
       break;
+    case kTfLiteInt4:
     case kTfLiteInt8:
       if (kernel_type == kReference) {
         reference_integer_ops::Dequantize<int8_t>(
-            op_params, GetTensorShape(input), GetTensorData<int8_t>(input),
+            op_params, GetTensorShape(input), input_data,
             GetTensorShape(output), GetTensorData<float>(output));
       } else {
-        optimized_ops::Dequantize(
-            op_params, GetTensorShape(input), GetTensorData<int8_t>(input),
-            GetTensorShape(output), GetTensorData<float>(output));
+        optimized_ops::Dequantize(op_params, GetTensorShape(input), input_data,
+                                  GetTensorShape(output),
+                                  GetTensorData<float>(output));
       }
       break;
     case kTfLiteInt16:
