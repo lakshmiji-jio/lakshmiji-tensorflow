@@ -168,14 +168,11 @@ void MemoryBoundLoopOptimizer::MaybeCreateLoopValue(
   auto get_index_in_loop =
       [&](const HloInstruction* instruction,
           const absl::flat_hash_map<const HloInstruction*, int64_t>&
-              instructions_in_loop,
-          int64_t relative_index = 0) {
+              instructions_in_loop) {
         std::optional<int64_t> loop_index;
         if (instructions_in_loop.contains(instruction)) {
-          loop_index = hlo_live_range_.instruction_schedule().at(instruction) -
-                       loop_start_ + relative_index;
-          CHECK_GE(*loop_index, 0);
-          CHECK_LT(*loop_index, loop_size_);
+          loop_index = instructions_in_loop.at(instruction);
+          return loop_index;
         }
         return loop_index;
       };
@@ -183,12 +180,10 @@ void MemoryBoundLoopOptimizer::MaybeCreateLoopValue(
     return get_index_in_loop(instruction, instructions_in_loop_);
   };
   auto get_index_in_prev_iteration = [&](const HloInstruction* instruction) {
-    return get_index_in_loop(instruction, instructions_in_prev_iteration_,
-                             loop_size_);
+    return get_index_in_loop(instruction, instructions_in_prev_iteration_);
   };
   auto get_index_in_next_iteration = [&](const HloInstruction* instruction) {
-    return get_index_in_loop(instruction, instructions_in_next_iteration_,
-                             -loop_size_);
+    return get_index_in_loop(instruction, instructions_in_next_iteration_);
   };
 
   loop_values_.push_back({});
