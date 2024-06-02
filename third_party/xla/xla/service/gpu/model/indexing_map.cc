@@ -772,7 +772,8 @@ std::string Interval::ToString() const {
 }
 
 void Interval::Print(std::ostream& out) const {
-  out << '[' << lower << ", " << upper << "]";
+  // The interval is printed as a semi-open one because it is easier to read.
+  out << '[' << lower << ", " << upper + 1 << ")";
 }
 
 Interval::ComparisonResult Interval::operator>(const Interval& b) const {

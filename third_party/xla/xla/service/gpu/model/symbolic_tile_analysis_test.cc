@@ -108,7 +108,7 @@ ENTRY main {
   EXPECT_THAT(root->block_id_to_tile_offsets_indexing(), MatchIndexingMap(R"(
     (d0) -> (d0 floordiv 10, (d0 mod 10) * 10)
     domain:
-    d0 in [0, 19]
+    d0 in [0, 20)
   )"));
 
   auto p0_from_subtract0 = root->operand(0);
@@ -120,7 +120,7 @@ ENTRY main {
                                       /*block_id_to_tile_offsets_indexing=*/R"(
     (d0) -> (d0 floordiv 10, (d0 mod 10) * 10)
     domain:
-    d0 in [0, 19]
+    d0 in [0, 20)
   )"));
 
   EXPECT_THAT(*p0_from_subtract1, MatchTiledHloInstruction(
@@ -129,7 +129,7 @@ ENTRY main {
                                       /*block_id_to_tile_offsets_indexing=*/R"(
     (d0) -> (d0 floordiv 10, 0)
     domain:
-    d0 in [0, 19]
+    d0 in [0, 20)
   )"));
 }
 
@@ -178,7 +178,7 @@ ENTRY main {
                          /*block_id_to_tile_offsets_indexing=*/R"(
     (d0) -> ((d0 floordiv 16) * 2, ((d0 floordiv 8) mod 2) * 4, (d0 mod 8) * 2)
     domain:
-    d0 in [0, 31]
+    d0 in [0, 32)
   )"));
 
   EXPECT_THAT(*root->operand(0),
@@ -187,7 +187,7 @@ ENTRY main {
                   /*block_id_to_tile_offsets_indexing=*/R"(
     (d0) -> (((d0 floordiv 8) mod 2) * 4, (d0 mod 8) * 2, (d0 floordiv 16) * 2)
     domain:
-    d0 in [0, 31]
+    d0 in [0, 32)
   )"));
 }
 
@@ -216,7 +216,7 @@ ENTRY main {
                          /*block_id_to_tile_offsets_indexing=*/R"(
     (d0) -> ((d0 floordiv 4) * 2, (d0 mod 4) * 2)
     domain:
-    d0 in [0, 7]
+    d0 in [0, 8)
   )"));
 
   EXPECT_THAT(*p0_from_slice0,
@@ -225,7 +225,7 @@ ENTRY main {
                   /*block_id_to_tile_offsets_indexing=*/R"(
     (d0) -> ((d0 floordiv 4) * 2, (d0 mod 4) * 2 + 2)
     domain:
-    d0 in [0, 7]
+    d0 in [0, 8)
   )"));
 
   EXPECT_THAT(*p0_from_slice1,
@@ -234,7 +234,7 @@ ENTRY main {
                   /*block_id_to_tile_offsets_indexing=*/R"(
     (d0) -> ((d0 floordiv 4) * 2 + 3, (d0 mod 4) * 2 + 4)
     domain:
-    d0 in [0, 7]
+    d0 in [0, 8)
   )"));
 }
 

@@ -411,10 +411,10 @@ TEST_F(SymbolicTileTest, CanPropagateTileThroughDynamicSlice) {
         size_map: ()[s0, s1, s2] -> (1, s1, s2)
         stride_map: ()[s0, s1, s2] -> (0, 1, 1)
         rt_vars:
-          s3 in [0, 1]
+          s3 in [0, 2)
             hlo: %of1 = s32[] parameter(1)
             (d0, d1, d2) -> ()
-          s4 in [0, 226]
+          s4 in [0, 227)
             hlo: %of3 = s32[] parameter(3)
             (d0, d1, d2) -> ()
       )")));
@@ -463,10 +463,10 @@ TEST_F(SymbolicTileTest, CanPropagateTileThroughDynamicUpdateSlice) {
         size_map: ()[s0, s1] -> (s0, s1)
         stride_map: ()[s0, s1] -> (1, 1)
         rt_vars:
-          s2 in [0, 15]
+          s2 in [0, 16)
             hlo: %of1 = s32[] parameter(2)
             (d0, d1) -> ()
-          s3 in [0, 20]
+          s3 in [0, 21)
             hlo: %of2 = s32[] parameter(3)
             (d0, d1) -> ()
       )")));
@@ -506,10 +506,10 @@ TEST_F(SymbolicTileTest, CanPropagateTileThroughGather) {
         size_map: ()[s0, s1, s2, s3] -> (s1, s2, s3)
         stride_map: ()[s0, s1, s2, s3] -> (1, 1, 1)
         rt_vars:
-          s4 in [0, 26]
+          s4 in [0, 27)
             hlo: %indices = s32[1806,2]{1,0} parameter(1)
             (d0, d1, d2, d3) -> (d0, 0)
-          s5 in [0, 68]
+          s5 in [0, 69)
             hlo: %indices = s32[1806,2]{1,0} parameter(1)
             (d0, d1, d2, d3) -> (d0, 1)
       )")));
