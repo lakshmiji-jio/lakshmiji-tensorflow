@@ -485,18 +485,18 @@ std::optional<int64_t> MatchShapeCoveringDynamicIndexInstruction(
   }
   Literal indvar_iter_val = std::move(indvar_init_result).value();
 
-  std::optional<int64_t> trip_count =
+  std::optional<WhileLoopTripCount> trip_count =
       MatchTrivialLoopTripCount(while_op, *indvar_tuple_idx, indvar_iter_val);
   if (!trip_count.has_value()) {
     return std::nullopt;
   }
 
-  VLOG(3) << "Loop trip count " << trip_count.value();
+  VLOG(3) << "Loop trip count " << trip_count->trip_count;
 
   WhileLoopConfig config;
   config.init =
       LiteralUtil::LiteralAsScalarInt64(std::move(indvar_iter_val)).value();
-  config.trip_count = trip_count.value();
+  config.trip_count = trip_count->trip_count;
   config.induction_var_idx = *indvar_tuple_idx;
 
   if (!InitialFeasibilityCheck(while_op, config)) {
