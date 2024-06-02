@@ -53,6 +53,7 @@ limitations under the License.
 #include "tensorflow/core/framework/tensor_util.h"
 #include "tensorflow/core/kernels/batching_util/batch_scheduler.h"
 #include "tensorflow/core/kernels/batching_util/batch_scheduler_utils.h"
+#include "tensorflow/core/kernels/batching_util/batch_stats.h"
 #include "tensorflow/core/kernels/batching_util/concat_split_util.h"
 #include "tensorflow/core/kernels/batching_util/input_split_metadata.h"
 #include "tensorflow/core/kernels/batching_util/threadsafe_status.h"
@@ -471,8 +472,9 @@ Status BatchResourceBase::RegisterInput(
   }
 
   BatcherQueueT* batcher_queue;
-  TF_RETURN_IF_ERROR(
-      LookupOrCreateBatcherQueue(batcher_queue_name, &batcher_queue));
+  TF_RETURN_IF_ERROR(LookupOrCreateBatcherQueue(
+      /* queue_name= */ batcher_queue_name,
+      /* model_name= */ GetModelName(context), /* queue= */ &batcher_queue));
 
   if (!session_metadata().name().empty()) {
     absl::MutexLock lock(&outstanding_batch_mu_);
@@ -1166,9 +1168,8 @@ void BatchResourceBase::ProcessBatchCallBack(
   }
 }
 
-// Looks up the batcher queue for 'queue_name'. If it didn't previously exist,
-// creates it.
 Status BatchResourceBase::LookupOrCreateBatcherQueue(const string& queue_name,
+                                                     const string& model_name,
                                                      BatcherQueueT** queue) {
   mutex_lock l(batcher_queues_mu_);
 
@@ -1180,8 +1181,12 @@ Status BatchResourceBase::LookupOrCreateBatcherQueue(const string& queue_name,
 
   std::unique_ptr<BatcherQueueT> new_queue;
   if (batcher_) {
+    BatcherT::QueueOptions batcher_queue_options = batcher_queue_options_;
+    batcher_queue_options.model_batch_stats =
+        &GlobalBatchStats().model(model_name);
+
     TF_RETURN_IF_ERROR(batcher_->AddQueue(
-        batcher_queue_options_,
+        batcher_queue_options,
         absl::bind_front(&BatchResourceBase::ProcessBatchCallBack, this),
         &new_queue));
   } else if (adaptive_batcher_) {
@@ -1234,6 +1239,15 @@ void BatchResourceBase::SplitBatchCostsAndRecordMetrics(
     RecordBatchCosts(model_name, processed_size,
                      absl::StrCat(cost_type, kNoSmearSuffix),
                      total_cost / processed_size * batch.size());
+
+    if (cost_type == kTpuCostName) {
+      // Register TPU cost for in-process use.
+      GlobalBatchStats()
+          .model(model_name)
+          .batch_size(processed_size)
+          .tpu_cost()
+          .Register(total_cost);
+    }
 
     for (int i = 0; i < batch.num_tasks(); i++) {
       RequestCost* request_cost = batch.task(i).request_cost;
