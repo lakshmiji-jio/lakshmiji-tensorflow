@@ -20,6 +20,7 @@ limitations under the License.
 #include <utility>
 
 #include "absl/container/flat_hash_set.h"
+#include "absl/status/status.h"
 #include "absl/strings/string_view.h"
 #include "flatbuffers/buffer.h"  // from @flatbuffers
 #include "flatbuffers/flatbuffer_builder.h"  // from @flatbuffers
@@ -42,7 +43,6 @@ limitations under the License.
 #include "tensorflow/compiler/mlir/quantization/common/quantization_lib/quantization_config.h"
 #include "tensorflow/compiler/mlir/tensorflow/utils/error_util.h"
 #include "tensorflow/core/framework/types.pb.h"
-#include "tensorflow/lite/c/c_api_types.h"
 #include "tensorflow/lite/core/api/error_reporter.h"
 #include "tensorflow/lite/stderr_reporter.h"
 
@@ -79,7 +79,7 @@ std::unique_ptr<tflite::ModelT> CreateMutableModelFromFile(
 
 // TODO(b/214314076): Support MLIR model as an input for the C++ dynamic range
 // quantization API
-TfLiteStatus QuantizeWeights(
+absl::Status QuantizeWeights(
     flatbuffers::FlatBufferBuilder* builder, const tflite::Model* input_model,
     tflite::ErrorReporter* error_reporter,
     const tflite::TensorType& inference_type,
@@ -138,7 +138,8 @@ TfLiteStatus QuantizeWeights(
     error_reporter->Report(
         "Couldn't apply dynamic range quantization since unsupported "
         "inference_type is passed.");
-    return kTfLiteError;
+    return absl::InvalidArgumentError(
+        "Quantize weights transformation failed.");
   }
 
   llvm::dbgs() << "weight_quantization: " << true
@@ -154,7 +155,8 @@ TfLiteStatus QuantizeWeights(
   if (failed(pm.run(module.get()))) {
     absl::string_view err = statusHandler.ConsumeStatus().message();
     error_reporter->Report("Failed to quantize: %s", err);
-    return kTfLiteError;
+    return absl::InvalidArgumentError(
+        "Quantize weights transformation failed.");
   }
 
   // Export the results to the builder
@@ -166,15 +168,16 @@ TfLiteStatus QuantizeWeights(
   if (!tflite::MlirToFlatBufferTranslateFunction(module.get(), options,
                                                  &result)) {
     error_reporter->Report("Failed to export MLIR to flatbuffer.");
-    return kTfLiteError;
+    return absl::InvalidArgumentError(
+        "Quantize weights transformation failed.");
   }
   builder->PushFlatBuffer(reinterpret_cast<const uint8_t*>(result.data()),
                           result.size());
 
-  return kTfLiteOk;
+  return absl::OkStatus();
 }
 
-TfLiteStatus QuantizeWeights(flatbuffers::FlatBufferBuilder* builder,
+absl::Status QuantizeWeights(flatbuffers::FlatBufferBuilder* builder,
                              const tflite::Model* input_model,
                              int64_t weights_min_num_elements,
                              bool use_hybrid_evaluation) {
@@ -191,7 +194,7 @@ TfLiteStatus QuantizeWeights(flatbuffers::FlatBufferBuilder* builder,
 }
 
 // In MLIR use_updated_hybrid_scheme = true means per-channel operation.
-TfLiteStatus QuantizeWeights(flatbuffers::FlatBufferBuilder* builder,
+absl::Status QuantizeWeights(flatbuffers::FlatBufferBuilder* builder,
                              const tflite::Model* input_model,
                              BufferType quant_type,
                              bool use_updated_hybrid_scheme) {
@@ -213,7 +216,7 @@ TfLiteStatus QuantizeWeights(flatbuffers::FlatBufferBuilder* builder,
                          /*legacy_float_scale=*/true);
 }
 
-TfLiteStatus QuantizeWeights(flatbuffers::FlatBufferBuilder* builder,
+absl::Status QuantizeWeights(flatbuffers::FlatBufferBuilder* builder,
                              const tflite::Model* input_model,
                              int64_t weights_min_num_elements,
                              const CustomOpMap& custom_op_map,
