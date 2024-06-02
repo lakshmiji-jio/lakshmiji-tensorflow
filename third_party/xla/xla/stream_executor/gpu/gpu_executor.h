@@ -103,11 +103,12 @@ class GpuExecutor : public StreamExecutor {
  public:
   // sub_platform indicates the subplatform used in this executor; it must
   // be a CUDA type.
-  GpuExecutor(Platform* platform, int device_ordinal)
+  GpuExecutor(Platform* platform, int device_ordinal, int stream_id = 0)
       : StreamExecutor(platform),
         device_(0),
         context_(nullptr),
         device_ordinal_(device_ordinal),
+        stream_id_(stream_id),
         cc_major_(0),
         cc_minor_(0),
         version_(0) {}
@@ -120,6 +121,8 @@ class GpuExecutor : public StreamExecutor {
   absl::Status Init() override;
 
   int device_ordinal() const override { return device_ordinal_; };
+
+  int stream_id() const override { return stream_id_; };
 
   absl::Status GetKernel(const MultiKernelLoaderSpec& spec,
                          Kernel* kernel) override;
@@ -416,6 +419,9 @@ class GpuExecutor : public StreamExecutor {
   // The device ordinal value that this executor was initialized with; recorded
   // for use in getting device metadata. Immutable post-initialization.
   int device_ordinal_;
+
+  // The stream group index value that this executor was initialized with.
+  int stream_id_;
 
   // The major version of the compute capability for device_.
   int cc_major_;
