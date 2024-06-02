@@ -54,6 +54,7 @@ limitations under the License.
 #include "xla/python/ifrt/device.h"
 #include "xla/python/ifrt/dtype.h"
 #include "xla/python/ifrt/executable.h"
+#include "xla/python/ifrt/future.h"
 #include "xla/python/ifrt/memory.h"
 #include "xla/python/ifrt/remap_plan.h"
 #include "xla/python/ifrt/shape.h"
@@ -177,6 +178,12 @@ class CompileOnlyIfRtClient final
       absl::Span<tsl::RCReference<ifrt::Array>> arrays,
       ifrt::ArrayCopySemantics semantics) override {
     return Unimplemented("RemapArrays not available with compile-only client.");
+  }
+
+  ifrt::Future<> GetArrayReadyFuture(
+      absl::Span<const tsl::RCReference<ifrt::Array>> arrays) override {
+    return ifrt::Future<>(Unimplemented(
+        "GetArrayReadyFuture not available with compile-only client."));
   }
 
   absl::StatusOr<tsl::RCReference<ifrt::Tuple>> MakeTuple(

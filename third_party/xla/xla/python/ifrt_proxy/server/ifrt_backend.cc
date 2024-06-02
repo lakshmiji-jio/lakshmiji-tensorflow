@@ -596,9 +596,15 @@ IfrtBackend::HandleDisassembleIntoSingleDeviceArraysRequest(
 
 Future<BackendInterface::Response> IfrtBackend::HandleCheckArrayReadyRequest(
     std::unique_ptr<IfrtRequest> request) {
-  auto array = GetArray(request->check_array_ready_request().array_handle());
-  if (!array.ok()) {
-    return Future<Response>(array.status());
+  std::vector<tsl::RCReference<xla::ifrt::Array>> arrays;
+  arrays.reserve(request->check_array_ready_request().array_handles_size());
+  for (const auto& array_handle :
+       request->check_array_ready_request().array_handles()) {
+    auto array = GetArray(array_handle);
+    if (!array.ok()) {
+      return Future<Response>(array.status());
+    }
+    arrays.push_back(*std::move(array));
   }
 
   auto ifrt_response_promise =
@@ -606,7 +612,7 @@ Future<BackendInterface::Response> IfrtBackend::HandleCheckArrayReadyRequest(
   Future<BackendInterface::Response> ifrt_response_future(
       ifrt_response_promise);
 
-  (*array)->GetReadyFuture().OnReady(
+  client_->GetArrayReadyFuture(arrays).OnReady(
       [op_id = request->request_metadata().op_id(),
        promise = std::move(ifrt_response_promise)](
           absl::Status status) mutable -> void {

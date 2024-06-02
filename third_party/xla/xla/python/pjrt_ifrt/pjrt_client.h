@@ -128,6 +128,9 @@ class PjRtClient final
       absl::Span<tsl::RCReference<xla::ifrt::Array>> arrays,
       ArrayCopySemantics semantics) override;
 
+  Future<> GetArrayReadyFuture(
+      absl::Span<const tsl::RCReference<Array>> arrays) override;
+
   absl::StatusOr<tsl::RCReference<Tuple>> MakeTuple(
       absl::Span<tsl::RCReference<Value>> values) override;
 

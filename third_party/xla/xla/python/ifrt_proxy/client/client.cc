@@ -29,11 +29,13 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/types/span.h"
+#include "llvm/Support/Casting.h"
 #include "xla/pjrt/pjrt_device_description.h"
 #include "xla/python/ifrt/array.h"
 #include "xla/python/ifrt/client.h"
 #include "xla/python/ifrt/device.h"
 #include "xla/python/ifrt/dtype.h"
+#include "xla/python/ifrt/future.h"
 #include "xla/python/ifrt/remap_plan.h"
 #include "xla/python/ifrt/shape.h"
 #include "xla/python/ifrt/sharding.h"
@@ -201,6 +203,36 @@ Client::RemapArrays(const RemapPlan& plan,
                     absl::Span<tsl::RCReference<xla::ifrt::Array>> arrays,
                     ArrayCopySemantics semantics) {
   return Array::RemapArrays(this, rpc_helper_, plan, arrays, semantics);
+}
+
+xla::ifrt::Future<> Client::GetArrayReadyFuture(
+    absl::Span<const tsl::RCReference<xla::ifrt::Array>> arrays) {
+  if (rpc_helper_->version().protocol_version() <= 1) {
+    // Legacy implementation for servers that do not support
+    // `Client::GetArrayReadyFuture`.
+    std::vector<xla::ifrt::Future<>> futures;
+    futures.reserve(arrays.size());
+    for (const auto& array : arrays) {
+      futures.push_back(array->GetReadyFuture());
+    }
+    return xla::ifrt::JoinFutures(futures);
+  }
+
+  auto req = std::make_unique<CheckArrayReadyRequest>();
+  for (const auto& array : arrays) {
+    auto proxy_array = llvm::dyn_cast<xla::ifrt::proxy::Array>(array.get());
+    if (!proxy_array) {
+      break;
+    }
+    req->add_array_handles(proxy_array->handle().handle);
+  }
+
+  auto promise = Future<>::CreatePromise();
+  rpc_helper_->CheckArrayReady(std::move(req))
+      .OnReady(
+          [promise](absl::StatusOr<std::shared_ptr<CheckArrayReadyResponse>>
+                        resp) mutable { promise.Set(resp.status()); });
+  return Future<>(std::move(promise));
 }
 
 absl::StatusOr<DeviceAssignment> Client::GetDefaultDeviceAssignment(

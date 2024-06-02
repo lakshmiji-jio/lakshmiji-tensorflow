@@ -320,7 +320,7 @@ message FullyReplicatedShardResponse {
 
 // Checks if the given Arrays are ready on the server.
 message CheckArrayReadyRequest {
-  fixed64 array_handle = 1;
+  repeated fixed64 array_handles = 1 [packed = false];
 }
 message CheckArrayReadyResponse {}
 
