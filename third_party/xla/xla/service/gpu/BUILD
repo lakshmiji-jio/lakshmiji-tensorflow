@@ -792,6 +792,9 @@ cc_library(
         "//xla/tsl/util/proto:proto_utils",
         "//xla/service/gpu:hlo_traversal",
     ]) + [
+        ":fusion_wrapper",
+        ":priority_fusion",
+        "//xla/service/gpu/model:gpu_hlo_cost_analysis",
         "//xla/stream_executor:stream_executor_memory_allocator",
         "@com_google_absl//absl/status",
         "@local_tsl//tsl/platform:path",
