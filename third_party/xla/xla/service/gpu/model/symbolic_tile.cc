@@ -15,6 +15,7 @@ limitations under the License.
 
 #include "xla/service/gpu/model/symbolic_tile.h"
 
+#include <algorithm>
 #include <cstdint>
 #include <iterator>
 #include <optional>
@@ -27,8 +28,10 @@ limitations under the License.
 #include "absl/algorithm/container.h"
 #include "absl/log/check.h"
 #include "absl/log/log.h"
+#include "absl/strings/string_view.h"
 #include "absl/types/span.h"
 #include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/Casting.h"
 #include "mlir/IR/AffineExpr.h"  // from @llvm-project
@@ -36,7 +39,6 @@ limitations under the License.
 #include "mlir/IR/MLIRContext.h"  // from @llvm-project
 #include "mlir/Support/LLVM.h"  // from @llvm-project
 #include "xla/service/gpu/model/affine_map_printer.h"
-#include "xla/service/gpu/model/indexing_analysis.h"
 #include "xla/service/gpu/model/indexing_map.h"
 
 namespace xla {
@@ -103,9 +105,66 @@ AffineMap SubstituteAllIndicesAndRangeVarSymbolsWithSameValue(
   return simplifyAffineMap(affine_map.replace(indices, num_dims, num_symbols));
 }
 
+// Helper to insert a constraint that can never be satisfied into a
+// ConstraintMap.
+void AddUnsatisfiableConstraint(SymbolicTile::ConstraintMap& constraints,
+                                MLIRContext* ctx) {
+  constraints.insert(
+      {getAffineConstantExpr(1, ctx), Interval{/*lower=*/0, /*upper=*/0}});
+}
+
+// Merges `maybe_first_map` and `second_map` if
+//  (1) `maybe_first_map` is present, and
+//  (2) `second_map` and `*maybe_first_map` have distinct sets of keys.
+// Otherwise, returns `std::nullopt`.
+//
+// We wrap the left-hand side parameter map in `std::optional` in order to allow
+// error propagation when using this as a reducer over a collection of
+// `ConstraintMap`s. The behaviour of this function is in spirit equivalent to
+// using C++23's `std::optional<T>::and_then` to merge a collection of
+// `ConstraintMap`s.
+//
+// We pass `maybe_first_map` by value here in order to exploit move semantics
+// to avoid copies when possible.
+//
+// TODO(bchetioui): allow merging constraints in more edge cases, e.g. if one
+// of the intervals is contained within the other.
+std::optional<SymbolicTile::ConstraintMap> MonadicConstraintMapMerge(
+    std::optional<SymbolicTile::ConstraintMap> maybe_first_map,
+    const SymbolicTile::ConstraintMap& second_map) {
+  if (!maybe_first_map.has_value()) {
+    return std::nullopt;
+  }
+
+  SymbolicTile::ConstraintMap& first_map = *maybe_first_map;
+
+  for (const auto& [expr, interval] : second_map) {
+    if (first_map.contains(expr)) {
+      AffineMapPrinter printer;
+      VLOG(1) << "Got two different constraints for expression "
+              << printer.ToString(expr);
+      return std::nullopt;
+    }
+
+    first_map.insert({expr, interval});
+  }
+
+  return first_map;
+}
+
 struct SizeAndStrideExpression {
   AffineExpr size;
   AffineExpr stride;
+  SymbolicTile::ConstraintMap constraints;
+
+  SizeAndStrideExpression(AffineExpr size, AffineExpr stride)
+      : size(std::move(size)), stride(std::move(stride)) {}
+
+  SizeAndStrideExpression(AffineExpr size, AffineExpr stride,
+                          SymbolicTile::ConstraintMap constraints)
+      : size(std::move(size)),
+        stride(std::move(stride)),
+        constraints(std::move(constraints)) {}
 };
 
 // Extracts size and stride expressions from the operands to a modulo
@@ -114,20 +173,20 @@ struct SizeAndStrideExpression {
 // TODO(b/326998704): Currently, this fails when the stride is not exactly unit.
 std::optional<SizeAndStrideExpression> ExtractSizeAndStrideFromMod(
     AffineExpr lhs, AffineExpr modulus) {
-  // TODO(b/326998704): derive constraints here, as well as the non-one stride
-  // case, both in the code and in the proof.
+  // TODO(b/326998704): finish deriving constraints here, as well as the non-one
+  // stride case, both in the code and in the proof.
   // Let f(d0) = d0 mod c. Then, given an input tile size n,
   // {f(x) | x in Fin(n)} contains:
-  //   * n elements if n < c (and we add a constraint such that c | n);
-  //   * c elements if n >= c (and we add a constraint such that n | c).
+  //   * n elements if n < c (and we add a constraint such that n | c);
+  //   * c elements if n >= c (and we add a constraint such that c | n).
   // Given these constraints and assumptions, we derive
   //   card({f(x) | x in Fin(n)}) = n - ((n - 1) floordiv n) * n.
   // Proof:
-  //   * n < c (and c | n):
+  //   * n < c (and n | c):
   //       n - ((n - 1) floordiv c) * c
   //     = n - 0 * c               (n < c => n floordiv c == 0)
   //     = n
-  //   * n >= c (and n | c):
+  //   * n >= c (and c | n):
   //       n - ((n - 1) floordiv c) * c
   //     = n - (n / c - 1) * c     (n | c => (n - 1) floordiv c = n / c - 1)
   //     = n - (n - c)
@@ -138,9 +197,18 @@ std::optional<SizeAndStrideExpression> ExtractSizeAndStrideFromMod(
         dim_expr - mlir::getAffineBinaryOpExpr(AffineExprKind::FloorDiv,
                                                dim_expr - 1, modulus) *
                        modulus;
+
+    AffineExpr constrained_expr =
+        getAffineSymbolExpr(dim_expr.getPosition(), lhs.getContext()) % modulus;
+    SymbolicTile::ConstraintMap constraints;
+    // TODO(b/334043867): we only add a constraint for c | n while we do not
+    // support disjunctions.
+    constraints.insert({constrained_expr, Interval{/*lower=*/0, /*upper=*/0}});
+
     // In this case, stride is effectively 1 mod modulus = 1.
-    return SizeAndStrideExpression{
-        size, /*stride=*/getAffineConstantExpr(1, lhs.getContext())};
+    return SizeAndStrideExpression(
+        size, /*stride=*/getAffineConstantExpr(1, lhs.getContext()),
+        std::move(constraints));
   }
 
   return std::nullopt;
@@ -418,6 +486,28 @@ std::optional<SizeAndStrideExpression> CombineSizesAndStrides(
     std::vector<SizeAndStrideExpression> sizes_and_strides,
     absl::Span<Interval const> dimension_intervals) {
   CHECK(!sizes_and_strides.empty());
+
+  std::optional<SymbolicTile::ConstraintMap> maybe_constraints =
+      SymbolicTile::ConstraintMap();
+
+  for (const SizeAndStrideExpression& size_and_stride : sizes_and_strides) {
+    maybe_constraints = MonadicConstraintMapMerge(std::move(maybe_constraints),
+                                                  size_and_stride.constraints);
+    if (!maybe_constraints.has_value()) {
+      break;
+    }
+  }
+
+  SymbolicTile::ConstraintMap constraints;
+  // Handle cases that we don't know how to process by constructing a
+  // ConstraintMap with an unsatisfiable constraint.
+  if (maybe_constraints.has_value()) {
+    constraints = std::move(*maybe_constraints);
+  } else {
+    AddUnsatisfiableConstraint(constraints,
+                               sizes_and_strides[0].size.getContext());
+  }
+
   AffineExpr size = CombineSizes(sizes_and_strides);
   std::optional<AffineExpr> stride =
       CombineStrides(std::move(sizes_and_strides), dimension_intervals);
@@ -426,7 +516,7 @@ std::optional<SizeAndStrideExpression> CombineSizesAndStrides(
   }
 
   // TODO(b/326998704): handle reshape constraints here.
-  return SizeAndStrideExpression{size, *stride};
+  return SizeAndStrideExpression(size, *stride, std::move(constraints));
 }
 
 std::optional<SizeAndStrideExpression> ExtractSizeAndStride(
@@ -542,6 +632,13 @@ AffineExpr SimplifyAffineExpr(const AffineExpr& expr,
     const IndexingMap& indexing_map) {
   VLOG(1) << "SymbolicTile::FromIndexingMap: " << indexing_map.ToString();
 
+  // We do not handle indexing maps with pre-existing constraints for now.
+  if (indexing_map.GetConstraintsCount() != 0) {
+    VLOG(1) << "Deriving symbolic tile from indexing map with pre-existing "
+            << "constraints might produce spurious constraints. Bailing out.";
+    return std::nullopt;
+  }
+
   AffineMap input_affine_map = indexing_map.GetAffineMap();
   MLIRContext* mlir_context = input_affine_map.getContext();
 
@@ -577,6 +674,7 @@ AffineExpr SimplifyAffineExpr(const AffineExpr& expr,
     expr = SimplifyAffineExpr(expr, indexing_map);
   }
 
+  std::optional<ConstraintMap> maybe_constraints = ConstraintMap();
   std::vector<AffineExpr> size_expressions;
   std::vector<AffineExpr> stride_expressions;
   size_expressions.reserve(offset_expressions.size());
@@ -597,6 +695,18 @@ AffineExpr SimplifyAffineExpr(const AffineExpr& expr,
     }
     size_expressions.push_back(maybe_size_and_stride->size);
     stride_expressions.push_back(maybe_size_and_stride->stride);
+
+    maybe_constraints = MonadicConstraintMapMerge(
+        std::move(maybe_constraints), maybe_size_and_stride->constraints);
+  }
+
+  ConstraintMap constraints;
+  // Handle cases that we don't know how to process by constructing a
+  // ConstraintMap with an unsatisfiable constraint.
+  if (maybe_constraints.has_value()) {
+    constraints = std::move(*maybe_constraints);
+  } else {
+    AddUnsatisfiableConstraint(constraints, mlir_context);
   }
 
   // Eliminate negative strides and recalculate offsets.
@@ -635,9 +745,8 @@ AffineExpr SimplifyAffineExpr(const AffineExpr& expr,
                      /*results=*/results,
                      /*context=*/indexing_map.GetMLIRContext());
 
-  // TODO(b/326998704): Pass constraints derived in ExtractSizeAndStrideFromMod
-  // (and possibly other places) to the constructor. Also consider if we can
-  // derive any constraints from the constraints of the original indexing map.
+  // TODO(b/326998704): Can we derive any constraint from the constraints of
+  // the original indexing map?
   IndexingMap tile_map(
       /*affine_map=*/std::move(tile_affine_map),
       /*dimensions=*/std::move(tile_sizes),
@@ -647,7 +756,7 @@ AffineExpr SimplifyAffineExpr(const AffineExpr& expr,
   CHECK_EQ(tile_map.GetRangeVarsCount(), 0);
 
   VLOG(1) << "tile_map: " << tile_map.ToString();
-  return SymbolicTile(std::move(tile_map));
+  return SymbolicTile(std::move(tile_map), constraints);
 }
 
 std::string SymbolicTile::RtVarsToString(
@@ -682,6 +791,24 @@ void SymbolicTile::Print(std::ostream& out,
     PrintRTVars(rt_vars,
                 /*first_rt_var_symbol_index=*/tile_map_.GetDimensionCount(),
                 out, printer);
+  }
+  if (!constraints_.empty()) {
+    out << "\n\tconstraints: ";
+    // Accumulate constraints in a vector in order to put them in lexicographic
+    // order and to get deterministic output.
+    std::vector<std::string> constraint_strings;
+    constraint_strings.reserve(constraints_.size());
+    for (const auto& [expr, interval] : constraints_) {
+      std::stringstream ss;
+      printer.Print(ss, expr);
+      ss << " in ";
+      interval.Print(ss);
+      constraint_strings.push_back(ss.str());
+    }
+    std::sort(constraint_strings.begin(), constraint_strings.end());
+    for (absl::string_view constraint_string : constraint_strings) {
+      out << "\n\t" << constraint_string;
+    }
   }
   out << "\n";
 }
